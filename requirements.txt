@@ -1,5 +1,5 @@
-# Lightweight requirements for Vercel deployment
-# Full ML requirements in requirements-full.txt
+# ABFI Intelligence Suite - Requirements for Vercel deployment
+# For local development with full ML: pip install -r requirements-full.txt
 
 # Core API
 fastapi>=0.109.0
@@ -7,8 +7,11 @@ uvicorn[standard]>=0.27.0
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
 
-# HTTP
+# HTTP Client
 httpx>=0.26.0
+
+# Database (SQLite works everywhere, Turso for production)
+# No additional deps needed - sqlite3 is built into Python
 
 # Utilities
 python-dotenv>=1.0.0

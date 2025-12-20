@@ -3,12 +3,19 @@ ABFI Intelligence Suite - Lending Sentiment API
 
 Product 1: Lending Sentiment Dashboard
 Provides lending sentiment index, fear components, and document analysis.
+
+Now connected to real database with scraped and analyzed articles.
 """
 
+import json
 from datetime import date, datetime, timedelta
 from typing import List, Optional
-from fastapi import APIRouter, Query, UploadFile, File, HTTPException
+from fastapi import APIRouter, Query, UploadFile, File, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
+
+from app.db import database as db
+from app.services.llm_analyzer import analyze_article as llm_analyze
+from app.services.data_pipeline import run_pipeline, refresh_sentiment_index
 
 
 router = APIRouter()
@@ -119,18 +126,11 @@ class SentimentAlert(BaseModel):
 
 
 # ============================================================================
-# Endpoints - Dashboard Data
+# Helper Functions
 # ============================================================================
 
-@router.get("/index", response_model=SentimentIndex)
-async def get_current_sentiment_index():
-    """
-    Get the current lending sentiment index.
-
-    Returns overall index, document counts, and fear component breakdown.
-    Used for KPI cards on dashboard.
-    """
-    # Mock data matching dashboard wireframe
+def _get_mock_sentiment_index() -> SentimentIndex:
+    """Return mock data when no real data exists."""
     return SentimentIndex(
         date=date.today(),
         overall_index=42,
@@ -152,6 +152,47 @@ async def get_current_sentiment_index():
     )
 
 
+# ============================================================================
+# Endpoints - Dashboard Data
+# ============================================================================
+
+@router.get("/index", response_model=SentimentIndex)
+async def get_current_sentiment_index():
+    """
+    Get the current lending sentiment index.
+
+    Returns overall index, document counts, and fear component breakdown.
+    Used for KPI cards on dashboard.
+    """
+    # Try to get real data from database
+    latest = db.get_latest_sentiment_index()
+
+    if latest:
+        fear = latest.get("fear_breakdown", {})
+        return SentimentIndex(
+            date=date.fromisoformat(latest["index_date"]),
+            overall_index=latest["overall_index"],
+            bullish_count=latest["bullish_count"],
+            bearish_count=latest["bearish_count"],
+            neutral_count=latest["neutral_count"],
+            documents_analyzed=latest["documents_analyzed"],
+            fear_components=FearComponents(
+                regulatory_risk=fear.get("regulatory_risk", 0),
+                technology_risk=fear.get("technology_risk", 0),
+                feedstock_risk=fear.get("feedstock_risk", 0),
+                counterparty_risk=fear.get("counterparty_risk", 0),
+                market_risk=fear.get("market_risk", 0),
+                esg_concerns=fear.get("esg_concerns", 0),
+            ),
+            daily_change=latest.get("daily_change"),
+            weekly_change=latest.get("weekly_change"),
+            monthly_change=latest.get("monthly_change"),
+        )
+
+    # Fallback to mock data if no real data
+    return _get_mock_sentiment_index()
+
+
 @router.get("/index/history", response_model=List[SentimentIndex])
 async def get_sentiment_history(
     lookback_days: int = Query(default=365, ge=1, le=730),
@@ -162,12 +203,35 @@ async def get_sentiment_history(
     Get historical sentiment index time series.
 
     Used for main sentiment trend chart on dashboard.
-
-    - **lookback_days**: Number of days to retrieve (default 365)
-    - **start_date**: Optional start date filter
-    - **end_date**: Optional end date filter
     """
-    # Generate mock historical data
+    history_data = db.get_sentiment_history(days=lookback_days)
+
+    if history_data:
+        results = []
+        for item in history_data:
+            fear = item.get("fear_breakdown", {})
+            results.append(SentimentIndex(
+                date=date.fromisoformat(item["index_date"]),
+                overall_index=item["overall_index"],
+                bullish_count=item["bullish_count"],
+                bearish_count=item["bearish_count"],
+                neutral_count=item["neutral_count"],
+                documents_analyzed=item["documents_analyzed"],
+                fear_components=FearComponents(
+                    regulatory_risk=fear.get("regulatory_risk", 0),
+                    technology_risk=fear.get("technology_risk", 0),
+                    feedstock_risk=fear.get("feedstock_risk", 0),
+                    counterparty_risk=fear.get("counterparty_risk", 0),
+                    market_risk=fear.get("market_risk", 0),
+                    esg_concerns=fear.get("esg_concerns", 0),
+                ),
+                daily_change=item.get("daily_change"),
+                weekly_change=item.get("weekly_change"),
+                monthly_change=item.get("monthly_change"),
+            ))
+        return results
+
+    # Generate mock historical data as fallback
     end = end_date or date.today()
     start = start_date or (end - timedelta(days=lookback_days))
 
@@ -203,12 +267,24 @@ async def get_sentiment_trend(
     Get sentiment trend data for area chart.
 
     Returns bullish, bearish, and net sentiment time series.
-
-    - **period**: Time period (1m, 3m, 6m, 12m, 24m)
     """
     periods = {"1m": 30, "3m": 90, "6m": 180, "12m": 365, "24m": 730}
     days = periods.get(period, 365)
 
+    history_data = db.get_sentiment_history(days=days)
+
+    if history_data:
+        return [
+            SentimentTrend(
+                date=date.fromisoformat(item["index_date"]),
+                bullish=item["bullish_count"],
+                bearish=item["bearish_count"],
+                net_sentiment=item["overall_index"],
+            )
+            for item in history_data
+        ]
+
+    # Mock data fallback
     trends = []
     for i in range(days):
         d = date.today() - timedelta(days=days - i)
@@ -231,6 +307,21 @@ async def get_lender_scores(
 
     Used for lender comparison matrix on dashboard.
     """
+    lender_data = db.get_lender_sentiment_scores(limit=limit)
+
+    if lender_data:
+        return [
+            LenderScore(
+                lender=item["lender"],
+                sentiment=item["sentiment"],
+                change_30d=0,  # TODO: calculate from historical data
+                documents=item["documents"],
+                trend=item.get("trend", []),
+            )
+            for item in lender_data
+        ]
+
+    # Mock data fallback
     lenders = [
         ("CEFC", 68, 12, 45),
         ("NAB", 34, 5, 28),
@@ -248,7 +339,7 @@ async def get_lender_scores(
             sentiment=score,
             change_30d=change,
             documents=docs,
-            trend=[score + i for i in range(-5, 5)],  # Mock sparkline
+            trend=[score + i for i in range(-5, 5)],
         )
         for name, score, change, docs in lenders[:limit]
     ]
@@ -264,7 +355,30 @@ async def get_document_feed(
 
     Used for latest documents panel on dashboard.
     """
-    # Mock documents
+    articles = db.get_recent_articles(limit=limit, sentiment=sentiment)
+
+    if articles:
+        results = []
+        for article in articles:
+            pub_date = article.get("published_date") or article.get("processed_at")
+            if isinstance(pub_date, str):
+                try:
+                    pub_date = datetime.fromisoformat(pub_date.replace("Z", "+00:00"))
+                except:
+                    pub_date = datetime.now()
+
+            results.append(DocumentFeed(
+                id=article["id"],
+                title=article["title"],
+                source=article.get("source", "Unknown"),
+                published_date=pub_date if isinstance(pub_date, datetime) else datetime.now(),
+                sentiment=article.get("sentiment", "NEUTRAL"),
+                sentiment_score=article.get("sentiment_score", 0),
+                url=article.get("url"),
+            ))
+        return results
+
+    # Mock documents fallback
     docs = [
         DocumentFeed(
             id="doc1",
@@ -323,27 +437,61 @@ async def analyze_document(
             detail="Provide file, url, or text for analysis"
         )
 
-    # Mock analysis result
+    # Get content
+    content = text or ""
+    title = "Analyzed Document"
+    source = "Text Input"
+
+    if file:
+        content = (await file.read()).decode("utf-8", errors="ignore")
+        title = file.filename or "Uploaded Document"
+        source = "User Upload"
+    elif url:
+        source = "URL"
+        title = url
+
+    # Analyze using LLM
+    analysis = await llm_analyze(title=title, content=content, source=source)
+
+    if analysis:
+        return DocumentAnalysis(
+            doc_id="analysis_" + datetime.now().strftime("%Y%m%d%H%M%S"),
+            title=title,
+            source=source,
+            source_type="upload" if file else ("url" if url else "text"),
+            published_date=datetime.now(),
+            sentiment=analysis.sentiment,
+            sentiment_score=analysis.sentiment_score,
+            intensity=analysis.intensity,
+            fear_components=analysis.fear_components,
+            temporal="MEDIUM_TERM",
+            entities=[],
+            lenders_mentioned=analysis.lenders_mentioned,
+            projects_mentioned=[],
+            policies_mentioned=[],
+            confidence=analysis.confidence,
+            attention_highlights=[analysis.summary],
+            processed_at=datetime.now(),
+        )
+
+    # Fallback mock result
     return DocumentAnalysis(
         doc_id="analysis_" + datetime.now().strftime("%Y%m%d%H%M%S"),
-        title="Analyzed Document",
-        source="User Upload" if file else ("URL" if url else "Text Input"),
-        source_type="upload",
+        title=title,
+        source=source,
+        source_type="upload" if file else ("url" if url else "text"),
         published_date=datetime.now(),
-        sentiment="BULLISH",
-        sentiment_score=0.75,
-        intensity=4,
-        fear_components=["REGULATORY_RISK", "TECHNOLOGY_RISK"],
+        sentiment="NEUTRAL",
+        sentiment_score=0.0,
+        intensity=3,
+        fear_components=[],
         temporal="MEDIUM_TERM",
-        entities=[
-            EntityAnnotation(text="CEFC", label="LENDER", start=45, end=49),
-            EntityAnnotation(text="bioenergy project", label="PROJECT", start=100, end=117),
-        ],
-        lenders_mentioned=["CEFC"],
-        projects_mentioned=["bioenergy project"],
+        entities=[],
+        lenders_mentioned=[],
+        projects_mentioned=[],
         policies_mentioned=[],
-        confidence=0.89,
-        attention_highlights=["strong lending appetite", "favorable terms"],
+        confidence=0.5,
+        attention_highlights=["Analysis pending"],
         processed_at=datetime.now(),
     )
 
@@ -362,8 +510,47 @@ async def list_analyzed_documents(
 
     Filter by source, sentiment, date range with pagination.
     """
-    # Would query database
-    return []
+    articles = db.get_recent_articles(limit=limit, sentiment=sentiment, source=source)
+
+    results = []
+    for article in articles:
+        pub_date = article.get("published_date") or article.get("processed_at")
+        if isinstance(pub_date, str):
+            try:
+                pub_date = datetime.fromisoformat(pub_date.replace("Z", "+00:00"))
+            except:
+                pub_date = datetime.now()
+
+        fear_comps = article.get("fear_components", "[]")
+        if isinstance(fear_comps, str):
+            fear_comps = json.loads(fear_comps)
+
+        lenders = article.get("lenders_mentioned", "[]")
+        if isinstance(lenders, str):
+            lenders = json.loads(lenders)
+
+        results.append(DocumentAnalysis(
+            doc_id=article["id"],
+            title=article["title"],
+            source=article.get("source", "Unknown"),
+            source_type="scraped",
+            published_date=pub_date if isinstance(pub_date, datetime) else datetime.now(),
+            url=article.get("url"),
+            sentiment=article.get("sentiment", "NEUTRAL"),
+            sentiment_score=article.get("sentiment_score", 0),
+            intensity=article.get("intensity", 3),
+            fear_components=fear_comps,
+            temporal="MEDIUM_TERM",
+            entities=[],
+            lenders_mentioned=lenders,
+            projects_mentioned=[],
+            policies_mentioned=[],
+            confidence=article.get("confidence", 0.5),
+            attention_highlights=[article.get("summary", "")],
+            processed_at=datetime.fromisoformat(article["processed_at"]) if article.get("processed_at") else datetime.now(),
+        ))
+
+    return results
 
 
 @router.get("/fear-components/history")
@@ -379,6 +566,29 @@ async def get_fear_component_history(
 
     Used for fear breakdown chart on dashboard.
     """
+    history_data = db.get_sentiment_history(days=lookback_days)
+
+    if history_data:
+        components = [
+            "regulatory_risk", "technology_risk", "feedstock_risk",
+            "counterparty_risk", "market_risk", "esg_concerns"
+        ]
+
+        history = {}
+        for comp in components:
+            if component and component != "all" and comp != component:
+                continue
+            history[comp] = []
+            for item in history_data:
+                fear = item.get("fear_breakdown", {})
+                history[comp].append({
+                    "date": item["index_date"],
+                    "value": fear.get(comp, 0)
+                })
+
+        return history
+
+    # Mock data fallback
     components = [
         "regulatory_risk", "technology_risk", "feedstock_risk",
         "counterparty_risk", "market_risk", "esg_concerns"
@@ -394,6 +604,38 @@ async def get_fear_component_history(
         ]
 
     return history
+
+
+# ============================================================================
+# Endpoints - Pipeline Control
+# ============================================================================
+
+@router.post("/pipeline/run")
+async def trigger_pipeline(background_tasks: BackgroundTasks):
+    """
+    Trigger the data pipeline to scrape and analyze new articles.
+
+    Runs in the background and returns immediately.
+    """
+    background_tasks.add_task(run_pipeline)
+    return {
+        "status": "started",
+        "message": "Pipeline started in background. Check /documents/feed for new articles."
+    }
+
+
+@router.post("/pipeline/refresh-index")
+async def trigger_refresh_index():
+    """
+    Refresh the sentiment index from existing data.
+
+    Use this to recalculate the index without scraping new articles.
+    """
+    result = await refresh_sentiment_index()
+    return {
+        "status": "completed",
+        "result": result,
+    }
 
 
 # ============================================================================
@@ -426,7 +668,6 @@ async def get_sentiment_alerts():
 @router.post("/alerts")
 async def create_sentiment_alert(alert: SentimentAlert):
     """Create a new sentiment alert."""
-    # Would save to database
     return {"status": "created", "alert_id": alert.id}
 
 

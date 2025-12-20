@@ -1,5 +1,5 @@
 # ABFI Database Layer
-# PostgreSQL with JSONB for flexible schema
+# SQLite for serverless compatibility, PostgreSQL models for reference
 
 from .models import (
     Source,
@@ -14,6 +14,9 @@ from .models import (
     CounterpartyRating,
 )
 
+# Import database operations
+from . import database
+
 __all__ = [
     "Source",
     "RawDocument",
@@ -25,4 +28,5 @@ __all__ = [
     "FeedstockPrice",
     "PolicyTracker",
     "CounterpartyRating",
+    "database",
 ]
