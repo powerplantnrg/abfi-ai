@@ -1,0 +1,297 @@
+@import "tailwindcss";
+
+/* ABFI Intelligence Suite - Professional Financial Dashboard Theme */
+/* Bloomberg-inspired dark mode with accessibility-compliant colors */
+
+@theme {
+  /* Base colors - dark mode first */
+  --color-background: #0a0a0b;
+  --color-surface: #121214;
+  --color-surface-elevated: #1a1a1d;
+  --color-surface-hover: #222226;
+  --color-border: #2a2a2e;
+  --color-border-subtle: #1f1f23;
+
+  /* Text colors */
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted: #71717a;
+
+  /* Semantic colors - financial */
+  --color-bullish: #22c55e;
+  --color-bullish-muted: #166534;
+  --color-bearish: #ef4444;
+  --color-bearish-muted: #991b1b;
+  --color-neutral: #3b82f6;
+  --color-neutral-muted: #1e40af;
+
+  /* Accent colors */
+  --color-accent: #f59e0b;
+  --color-accent-hover: #d97706;
+
+  /* Chart colors */
+  --color-chart-1: #3b82f6;
+  --color-chart-2: #22c55e;
+  --color-chart-3: #f59e0b;
+  --color-chart-4: #8b5cf6;
+  --color-chart-5: #ec4899;
+  --color-chart-6: #06b6d4;
+
+  /* Risk rating colors */
+  --color-risk-low: #22c55e;
+  --color-risk-medium: #f59e0b;
+  --color-risk-high: #ef4444;
+
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+
+  /* Border radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /* Font family - financial dashboard optimized */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+}
+
+/* Base styles */
+html {
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* Data visualization helpers */
+.number-positive {
+  color: var(--color-bullish);
+}
+
+.number-negative {
+  color: var(--color-bearish);
+}
+
+.number-neutral {
+  color: var(--color-text-secondary);
+}
+
+/* Sparkline container */
+.sparkline {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+}
+
+/* Card hover effect */
+.card-hover {
+  transition: all 0.2s ease;
+}
+
+.card-hover:hover {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border);
+}
+
+/* Focus ring for accessibility */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Animation utilities */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* Table styles */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.data-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.data-table tr:hover {
+  background-color: var(--color-surface-hover);
+}
+
+/* Badge styles */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 9999px;
+}
+
+.badge-bullish {
+  background-color: var(--color-bullish-muted);
+  color: var(--color-bullish);
+}
+
+.badge-bearish {
+  background-color: var(--color-bearish-muted);
+  color: var(--color-bearish);
+}
+
+.badge-neutral {
+  background-color: var(--color-neutral-muted);
+  color: var(--color-neutral);
+}
+
+/* KPI Card styles */
+.kpi-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+}
+
+.kpi-value {
+  font-size: 2rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.kpi-label {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.kpi-delta {
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Chart container */
+.chart-container {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+}
+
+/* Sidebar styles */
+.sidebar {
+  background-color: var(--color-surface);
+  border-right: 1px solid var(--color-border-subtle);
+  width: 240px;
+  min-height: 100vh;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+}
+
+.sidebar-item:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.sidebar-item.active {
+  background-color: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+}
+
+/* Loading skeleton */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 0%,
+    var(--color-surface-elevated) 50%,
+    var(--color-surface) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
