@@ -14,17 +14,50 @@ from typing import Optional, List, Dict, Any
 from contextlib import contextmanager
 from pathlib import Path
 import logging
+import os
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Database path
+# Database path for local SQLite
 DB_PATH = Path(__file__).parent.parent.parent / "abfi_intelligence.db"
 
+# Check if we should use Turso (production) or local SQLite (development)
+USE_TURSO = bool(settings.turso_database_url and settings.turso_auth_token)
 
-def get_connection() -> sqlite3.Connection:
-    """Get database connection with JSON support."""
+# Turso/LibSQL connection (lazy loaded)
+_turso_client = None
+
+
+def _get_turso_client():
+    """Get or create Turso client connection."""
+    global _turso_client
+    if _turso_client is None:
+        try:
+            import libsql_experimental as libsql
+            _turso_client = libsql.connect(
+                settings.turso_database_url,
+                auth_token=settings.turso_auth_token
+            )
+            logger.info("Connected to Turso database")
+        except ImportError:
+            logger.warning("libsql_experimental not installed, falling back to SQLite")
+            return None
+        except Exception as e:
+            logger.error(f"Failed to connect to Turso: {e}")
+            return None
+    return _turso_client
+
+
+def get_connection():
+    """Get database connection - Turso for production, SQLite for dev."""
+    if USE_TURSO:
+        client = _get_turso_client()
+        if client:
+            return client
+
+    # Fallback to local SQLite
     conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
@@ -34,14 +67,19 @@ def get_connection() -> sqlite3.Connection:
 def get_db():
     """Context manager for database connections."""
     conn = get_connection()
+    is_turso = USE_TURSO and _turso_client is not None
+
     try:
         yield conn
-        conn.commit()
+        if not is_turso:
+            conn.commit()
     except Exception as e:
-        conn.rollback()
+        if not is_turso:
+            conn.rollback()
         raise e
     finally:
-        conn.close()
+        if not is_turso:
+            conn.close()
 
 
 def init_database():

@@ -10,8 +10,8 @@ pydantic-settings>=2.1.0
 # HTTP Client
 httpx>=0.26.0
 
-# Database (SQLite works everywhere, Turso for production)
-# No additional deps needed - sqlite3 is built into Python
+# Database - Turso (LibSQL) for serverless production
+libsql-experimental>=0.0.47
 
 # Utilities
 python-dotenv>=1.0.0

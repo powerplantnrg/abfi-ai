@@ -11,5 +11,9 @@ pydantic-settings>=2.1.0
 httpx>=0.26.0
 aiohttp>=3.9.0
 
+# Database - Turso (LibSQL) for serverless
+libsql-experimental>=0.0.47
+
 # Utilities
 python-dotenv>=1.0.0
+python-multipart>=0.0.6
