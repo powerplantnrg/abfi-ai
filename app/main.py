@@ -8,7 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.api.v1 import sentiment, prices, policy, carbon, counterparty
+from app.api.v1 import sentiment, prices, policy, carbon, counterparty, intelligence
+from app.services.scheduler import start_scheduler, stop_scheduler
 
 
 @asynccontextmanager
@@ -16,13 +17,14 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager for startup/shutdown events."""
     # Startup
     print("Starting ABFI Intelligence Suite...")
-    # TODO: Initialize model manager
-    # TODO: Connect to database
-    # TODO: Start background workers
+    # Start the data collection scheduler
+    await start_scheduler()
+    print("Data collection scheduler started")
     yield
     # Shutdown
     print("Shutting down ABFI Intelligence Suite...")
-    # TODO: Cleanup resources
+    await stop_scheduler()
+    print("Data collection scheduler stopped")
 
 
 app = FastAPI(
@@ -68,6 +70,11 @@ app.include_router(
     counterparty.router,
     prefix="/api/v1/counterparty",
     tags=["Counterparty Risk"]
+)
+app.include_router(
+    intelligence.router,
+    prefix="/api/v1/intelligence",
+    tags=["Market Intelligence"]
 )
 
 
