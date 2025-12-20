@@ -76,6 +76,7 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+nul
 
 # Secrets
 *.pem
@@ -91,3 +92,4 @@ alembic/versions/*.pyc
 
 # Triton
 model_repository/
+.vercel
