@@ -463,3 +463,116 @@ async def create_policy_alert(alert: PolicyAlert):
 async def delete_policy_alert(alert_id: str):
     """Delete a policy alert."""
     return {"status": "deleted", "alert_id": alert_id}
+
+
+# ============================================================================
+# Endpoints - Policy Updates (Dashboard Integration)
+# ============================================================================
+
+class PolicyUpdate(BaseModel):
+    """Policy update for news feed."""
+    id: str
+    title: str
+    description: str
+    jurisdiction: str
+    date: date
+    status: str
+    impact: str
+    priceImpact: float
+    link: str
+
+
+@router.get("/updates", response_model=List[PolicyUpdate])
+async def get_policy_updates(limit: int = Query(default=20, le=100)):
+    """
+    Get recent policy updates and news.
+    
+    Used by dashboard for policy news feed.
+    """
+    return [
+        PolicyUpdate(
+            id="upd1",
+            title="Queensland SAF Mandate Consultation Opens",
+            description="Queensland government opens consultation on proposed 2% Sustainable Aviation Fuel mandate",
+            jurisdiction="QLD",
+            date=date(2025, 1, 15),
+            status="consultation",
+            impact="bullish",
+            priceImpact=2.5,
+            link="https://example.gov.au/saf-mandate"
+        ),
+        PolicyUpdate(
+            id="upd2",
+            title="Victorian B20 Mandate Now in Effect",
+            description="Victoria's 20% biodiesel blending mandate officially commenced",
+            jurisdiction="VIC",
+            date=date(2025, 1, 1),
+            status="enacted",
+            impact="bullish",
+            priceImpact=5.2,
+            link="https://example.gov.au/b20-vic"
+        ),
+        PolicyUpdate(
+            id="upd3",
+            title="Federal RFS Review Delayed",
+            description="Renewable Fuel Standard review timeline extended by 3 months",
+            jurisdiction="Federal",
+            date=date(2024, 12, 20),
+            status="review",
+            impact="neutral",
+            priceImpact=0.0,
+            link="https://example.gov.au/rfs-review"
+        ),
+    ][:limit]
+
+
+# ============================================================================
+# Endpoints - Carbon Prices (Dashboard Integration)
+# ============================================================================
+
+class CarbonPrice(BaseModel):
+    """Carbon price for different markets."""
+    market: str
+    price: float
+    currency: str = "AUD"
+    change_pct: float
+
+
+@router.get("/carbon-prices", response_model=List[CarbonPrice])
+async def get_carbon_prices():
+    """
+    Get carbon prices across different markets.
+    
+    Used by dashboard for carbon price comparison.
+    """
+    return [
+        CarbonPrice(market="ACCU (Australia)", price=34.50, change_pct=3.6),
+        CarbonPrice(market="EU ETS", price=85.20, change_pct=1.2),
+        CarbonPrice(market="California LCFS", price=112.50, change_pct=-0.8),
+        CarbonPrice(market="UK ETS", price=78.30, change_pct=2.1),
+    ]
+
+
+# ============================================================================
+# Endpoints - Sustainability Metrics (Dashboard Integration)
+# ============================================================================
+
+class SustainabilityMetrics(BaseModel):
+    """Sustainability impact metrics."""
+    totalEmissionsAvoided: float
+    projectsFinanced: int
+    creditsIssued: int
+
+
+@router.get("/sustainability", response_model=SustainabilityMetrics)
+async def get_sustainability_metrics():
+    """
+    Get sustainability impact metrics.
+    
+    Used by dashboard for ESG reporting.
+    """
+    return SustainabilityMetrics(
+        totalEmissionsAvoided=2_450_000,  # tonnes CO2e
+        projectsFinanced=47,
+        creditsIssued=1_850_000,  # ACCUs
+    )

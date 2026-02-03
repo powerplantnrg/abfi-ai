@@ -471,3 +471,48 @@ async def create_price_alert(alert: PriceAlert):
 async def delete_price_alert(alert_id: str):
     """Delete a price alert."""
     return {"status": "deleted", "alert_id": alert_id}
+
+
+# ============================================================================
+# Endpoints - Feedstock Prices (Dashboard Integration)
+# ============================================================================
+
+class FeedstockPrice(BaseModel):
+    """Feedstock price summary."""
+    feedstock: str
+    spot_price: float
+    change_7d: float
+    currency: str = "AUD"
+    unit: str = "MT"
+
+
+@router.get("/feedstock", response_model=List[FeedstockPrice])
+async def get_feedstock_prices():
+    """
+    Get current feedstock prices for all commodities.
+    
+    Used by dashboard for feedstock price comparison.
+    """
+    return [
+        FeedstockPrice(feedstock="UCO", spot_price=1245, change_7d=2.3),
+        FeedstockPrice(feedstock="Tallow", spot_price=892, change_7d=-1.2),
+        FeedstockPrice(feedstock="Canola", spot_price=687, change_7d=0.8),
+        FeedstockPrice(feedstock="Palm Oil", spot_price=1034, change_7d=0.1),
+        FeedstockPrice(feedstock="PFAD", spot_price=980, change_7d=-0.5),
+    ]
+
+
+@router.get("/regional", response_model=List[RegionalPrice])
+async def get_regional_prices():
+    """
+    Get regional price comparison for all regions.
+    
+    Used by dashboard for regional price analysis.
+    """
+    return [
+        RegionalPrice(region="AUS", region_name="Australia", price=1245, change_pct=2.3),
+        RegionalPrice(region="SEA", region_name="Southeast Asia", price=1203, change_pct=-0.8),
+        RegionalPrice(region="EU", region_name="Europe", price=1330, change_pct=1.1),
+        RegionalPrice(region="NA", region_name="North America", price=1243, change_pct=-0.2),
+        RegionalPrice(region="LATAM", region_name="Latin America", price=1180, change_pct=0.5),
+    ]

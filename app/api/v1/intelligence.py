@@ -282,3 +282,16 @@ async def disable_task(task_id: str):
     scheduler = get_scheduler()
     scheduler.disable_task(task_id)
     return {"status": "disabled", "task_id": task_id}
+
+
+@router.get(
+    "/latest",
+    summary="Get Latest Intelligence",
+    description="Get the latest market intelligence summary (alias for /summary)."
+)
+async def get_latest_intelligence(
+    use_cache: bool = Query(True, description="Use cached data if available")
+):
+    """Get latest market intelligence summary."""
+    # This is an alias for get_market_summary for dashboard compatibility
+    return await get_market_summary(use_cache=use_cache)
