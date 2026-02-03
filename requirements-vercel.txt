@@ -17,3 +17,10 @@ libsql-experimental>=0.0.47
 # Utilities
 python-dotenv>=1.0.0
 python-multipart>=0.0.6
+
+# Scheduling (lightweight for serverless)
+apscheduler>=3.10.0
+
+# OpenAI/LLM clients
+openai>=1.0.0
+anthropicsdk>=0.3.0

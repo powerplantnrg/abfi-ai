@@ -12,5 +12,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.main import app
+from app.db import database as db
+
+# Initialize database on cold start
+try:
+    db.init_database()
+    print("Database initialized successfully")
+except Exception as e:
+    print(f"Database initialization error: {e}")
 
 # Vercel expects 'app' for ASGI applications

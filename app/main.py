@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.api.v1 import sentiment, prices, policy, carbon, counterparty, intelligence
 from app.services.scheduler import start_scheduler, stop_scheduler
+from app.db import database as db
 
 
 @asynccontextmanager
@@ -17,9 +18,18 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager for startup/shutdown events."""
     # Startup
     print("Starting ABFI Intelligence Suite...")
-    # Start the data collection scheduler
-    await start_scheduler()
-    print("Data collection scheduler started")
+    # Initialize database
+    try:
+        db.init_database()
+        print("Database initialized successfully")
+    except Exception as e:
+        print(f"Database initialization warning: {e}")
+    # Start the data collection scheduler (only if enabled)
+    if settings.scraping_enabled:
+        await start_scheduler()
+        print("Data collection scheduler started")
+    else:
+        print("Data collection scheduler disabled")
     yield
     # Shutdown
     print("Shutting down ABFI Intelligence Suite...")
@@ -93,13 +103,23 @@ async def root():
 @app.get("/health", tags=["System"])
 async def health_check():
     """Health check endpoint for monitoring."""
+    # Check database connectivity
+    db_status = "operational"
+    try:
+        with db.get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+    except Exception as e:
+        db_status = f"error: {str(e)[:50]}"
+    
     return {
-        "status": "healthy",
+        "status": "healthy" if db_status == "operational" else "degraded",
         "version": "1.0.0",
         "services": {
             "api": "operational",
-            "database": "operational",  # TODO: actual check
-            "models": "operational",    # TODO: actual check
+            "database": db_status,
+            "models": "not_loaded",  # Models are optional for basic functionality
         }
     }
 
